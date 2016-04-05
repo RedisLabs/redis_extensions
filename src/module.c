@@ -458,6 +458,12 @@ int RedisModule_ReplyWithString(RedisModuleCtx *ctx, RedisModuleString *str) {
     return REDISMODULE_OK;
 }
 
+/* Reply with NULL. */
+int RedisModule_ReplyWithNull(RedisModuleCtx *ctx) {
+    addReply(ctx->client,shared.nullbulk);
+    return REDISMODULE_OK;
+}
+
 /* --------------------------------------------------------------------------
  * Commands replication API
  * -------------------------------------------------------------------------- */
@@ -1191,6 +1197,7 @@ void moduleRegisterCoreAPI(void) {
     REGISTER_API(ReplyWithArray);
     REGISTER_API(ReplyWithString);
     REGISTER_API(ReplyWithStringBuffer);
+    REGISTER_API(ReplyWithNull);
     REGISTER_API(GetSelectedDb);
     REGISTER_API(SelectDb);
     REGISTER_API(OpenKey);
