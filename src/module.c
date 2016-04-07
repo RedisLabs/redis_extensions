@@ -837,6 +837,7 @@ void moduleParseCallReply(RedisModuleCallReply *reply) {
     if (!(reply->flags & REDISMODULE_REPLYFLAG_TOPARSE)) return;
     reply->flags &= ~REDISMODULE_REPLYFLAG_TOPARSE;
 
+
     switch(reply->proto[0]) {
     case ':': moduleParseCallReply_Int(reply); break;
     case '$': moduleParseCallReply_BulkString(reply); break;
@@ -1040,6 +1041,10 @@ size_t getFlattendArgvLen(const char *fmt, va_list ap) {
             break;
         case 's':
             va_arg(ap,void*);
+            totalSize+=1;
+            break;
+        case 'c':
+            va_arg(ap,char*);
             totalSize+=1;
             break;
         case 'b':
