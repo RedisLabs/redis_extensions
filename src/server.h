@@ -1341,6 +1341,7 @@ int zsetScore(robj *zobj, sds member, double *score);
 unsigned long zslGetRank(zskiplist *zsl, double score, sds o);
 int zsetAdd(robj *zobj, double score, sds ele, int *flags, double *newscore);
 long zsetRank(robj *zobj, sds ele, int reverse);
+int zsetDel(robj *zobj, sds ele);
 
 /* Core functions */
 int freeMemoryIfNeeded(void);
