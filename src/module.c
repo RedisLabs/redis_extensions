@@ -113,7 +113,8 @@ typedef struct RedisModuleCallReply RedisModuleCallReply;
 void RM_FreeCallReply(RedisModuleCallReply *reply);
 void RM_CloseKey(RedisModuleKey *key);
 void RM_AutoMemoryCollect(RedisModuleCtx *ctx);
-robj **moduleCreateArgvFromUserFormat(const char *cmdname, const char *fmt, int *argcp, int *flags, va_list ap);
+size_t getFlattendArgvLen(const char *fmt, va_list ap);
+robj **moduleCreateArgvFromUserFormat(const char *cmdname, const char *fmt, int *argcp, int *flags, va_list ap, size_t argv_size);
 void moduleReplicateMultiIfNeeded(RedisModuleCtx *ctx);
 
 /* --------------------------------------------------------------------------
@@ -511,8 +512,14 @@ int RM_Replicate(RedisModuleCtx *ctx, const char *cmdname, const char *fmt, ...)
 
     /* Create the client and dispatch the command. */
     va_start(ap, fmt);
-    argv = moduleCreateArgvFromUserFormat(cmdname,fmt,&argc,&flags,ap);
+    size_t argv_size = getFlattendArgvLen(fmt, ap);
     va_end(ap);
+    
+    if (argv_size != 0) {
+        va_start(ap, fmt);
+        argv = moduleCreateArgvFromUserFormat(cmdname,fmt,&argc,&flags,ap, argv_size);
+        va_end(ap);
+    }
     if (argv == NULL) return REDISMODULE_ERR;
 
     /* Replicate! */
@@ -868,6 +875,7 @@ void moduleParseCallReply(RedisModuleCallReply *reply) {
     if (!(reply->flags & REDISMODULE_REPLYFLAG_TOPARSE)) return;
     reply->flags &= ~REDISMODULE_REPLYFLAG_TOPARSE;
 
+
     switch(reply->proto[0]) {
     case ':': moduleParseCallReply_Int(reply); break;
     case '$': moduleParseCallReply_BulkString(reply); break;
@@ -1051,15 +1059,65 @@ RedisModuleString *RM_CreateStringFromCallReply(RedisModuleCallReply *reply) {
 
 #define REDISMODULE_ARGV_REPLICATE (1<<0)
 
-robj **moduleCreateArgvFromUserFormat(const char *cmdname, const char *fmt, int *argcp, int *flags, va_list ap) {
-    int argc = 0, argv_size, j;
+
+/*
+Return the "flattened" length of argv based on user format in fmt,
+where "v" means a vector of arbitrary length.
+
+returns 0 if the format is invalid 
+*/
+size_t getFlattendArgvLen(const char *fmt, va_list ap) {
+    const char *p = fmt;
+   
+    size_t totalSize = 1; /* 1 for the acutal command */
+    while(*p) {
+        switch (*p) {
+        case 'v':
+            va_arg(ap, RedisModuleString **);
+            size_t len = va_arg(ap, size_t);
+            totalSize += len;
+            break;
+        case 's':
+            va_arg(ap,void*);
+            totalSize+=1;
+            break;
+        case 'c':
+            va_arg(ap,char*);
+            totalSize+=1;
+            break;
+        case 'b':
+            va_arg(ap,char*);
+            va_arg(ap,size_t);
+            totalSize += 1;
+            break;
+        case 'l':
+            va_arg(ap,long long);
+            totalSize+=1;
+            break;
+        case '!':
+            break;
+        default:
+            /* 0 == formatting error */
+            return 0;
+        }
+        p++;
+    }
+    return totalSize;
+}
+
+
+robj **moduleCreateArgvFromUserFormat(const char *cmdname, const char *fmt, int *argcp, int *flags, va_list ap, size_t argv_size) {
+    
+    int argc = 0, j;
     robj **argv = NULL;
-
-    /* As a first guess to avoid useless reallocations, size argv to
-     * hold one argument for each char specifier in 'fmt'. */
-    argv_size = strlen(fmt)+1; /* +1 because of the command name. */
+    
+    /* argv_size of 0 means a formatting error when guessing the array len */
+    if (argv_size == 0) {
+        goto fmterr;
+    }
+    
     argv = zrealloc(argv,sizeof(robj*)*argv_size);
-
+    
     /* Build the arguments vector based on the format specifier. */
     argv[0] = createStringObject(cmdname,strlen(cmdname));
     argc++;
@@ -1082,7 +1140,15 @@ robj **moduleCreateArgvFromUserFormat(const char *cmdname, const char *fmt, int 
             long ll = va_arg(ap,long long);
             argv[argc++] = createStringObjectFromLongLong(ll);
         } else if (*p == 'v') {
-            /* TODO: work in progress. */
+            /* a vector of strings */
+            robj **v = va_arg(ap, void*);
+            size_t vlen = va_arg(ap, size_t);
+            
+            for (size_t i = 0; i < vlen; i++) {
+                incrRefCount(v[i]);
+                argv[argc++] = v[i];
+            }
+            
         } else if (*p == '!') {
             if (flags) (*flags) |= REDISMODULE_ARGV_REPLICATE;
         } else {
@@ -1121,13 +1187,22 @@ RedisModuleCallReply *RM_Call(RedisModuleCtx *ctx, const char *cmdname, const ch
         return NULL;
     }
 
-    /* Create the client and dispatch the command. */
+    
+    /* get the real flattened size of the arg list */
     va_start(ap, fmt);
-    c = createClient(-1);
-    argv = moduleCreateArgvFromUserFormat(cmdname,fmt,&argc,&flags,ap);
-    replicate = flags & REDISMODULE_ARGV_REPLICATE;
+    size_t argv_size = getFlattendArgvLen(fmt, ap);
     va_end(ap);
-
+    
+    /* build the arg list */
+    if (argv_size != 0) {
+        va_start(ap, fmt);
+        argv = moduleCreateArgvFromUserFormat(cmdname,fmt,&argc,&flags,ap, argv_size);
+        replicate = flags & REDISMODULE_ARGV_REPLICATE;
+        va_end(ap);
+    }
+    /* Create the client and dispatch the command. */
+    c = createClient(-1);
+    
     /* Setup our fake client for command execution. */
     c->flags |= CLIENT_MODULE;
     c->argv = argv;
@@ -1189,6 +1264,8 @@ cleanup:
     freeClient(c);
     return reply;
 }
+
+
 
 /* Return a pointer, and a length, to the protocol returned by the command
  * that returned the reply object. */
@@ -1439,4 +1516,5 @@ void moduleCommand(client *c) {
     } else {
         addReply(c,shared.syntaxerr);
     }
+    
 }
