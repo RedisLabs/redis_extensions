@@ -1727,7 +1727,7 @@ int RM_HashSet(RedisModuleKey *key, int flags, ...) {
  * Example of REDISMODULE_HASH_CFIELD:
  *
  *  RedisModuleString *username, *hashedpass;
- *  RedisModule_HashGet(mykey,"username",&username,"hp",&hashedpass);
+ *  RedisModule_HashGet(mykey,"username",&username,"hp",&hashedpass, NULL);
  *
  * Example of REDISMODULE_HASH_EXISTS:
  *
@@ -1787,7 +1787,7 @@ int RM_HashGet(RedisModuleKey *key, int flags, ...) {
         if (flags & REDISMODULE_HASH_CFIELDS) decrRefCount(field);
     }
     va_end(ap);
-    return REDISMODULE_ERR;
+    return REDISMODULE_OK;
 }
 
 /* --------------------------------------------------------------------------
