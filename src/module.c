@@ -899,7 +899,6 @@ void *RM_OpenKey(RedisModuleCtx *ctx, robj *keyname, int mode) {
     } else {
         value = lookupKeyRead(ctx->client->db,keyname);
         if (value == NULL) {
-            decrRefCount(keyname);
             return NULL;
         }
     }
@@ -1018,6 +1017,7 @@ int RM_StringSet(RedisModuleKey *key, RedisModuleString *str) {
     if (!(key->mode & REDISMODULE_WRITE) || key->iter) return REDISMODULE_ERR;
     RM_DeleteKey(key);
     setKey(key->db,key->key,str);
+    key->value = str;
     return REDISMODULE_OK;
 }
 
@@ -1110,7 +1110,7 @@ int RM_StringTruncate(RedisModuleKey *key, size_t newlen) {
     } else if (newlen < curlen) {
         sdsrange(key->value->ptr,0,newlen-1);
         /* If the string is too wasteful, reallocate it. */
-        if (sdslen(key->value->ptr) > sdsavail(key->value->ptr))
+        if (sdslen(key->value->ptr) < sdsavail(key->value->ptr))
             key->value->ptr = sdsRemoveFreeSpace(key->value->ptr);
     }
     return REDISMODULE_OK;
@@ -1855,7 +1855,7 @@ void moduleParseCallReply_BulkString(RedisModuleCallReply *reply) {
 
     string2ll(proto+1,p-proto-1,&bulklen);
     if (bulklen == -1) {
-        reply->protolen = proto-p+2;
+        reply->protolen = p-proto+2;
         reply->type = REDISMODULE_REPLY_NULL;
     } else {
         reply->val.str = p+2;
@@ -1871,7 +1871,7 @@ void moduleParseCallReply_SimpleString(RedisModuleCallReply *reply) {
 
     reply->val.str = proto+1;
     reply->len = p-proto-1;
-    reply->protolen = proto-p+2;
+    reply->protolen = p-proto+2;
     reply->type = proto[0] == '+' ? REDISMODULE_REPLY_STRING :
                                     REDISMODULE_REPLY_ERROR;
 }
@@ -1885,7 +1885,7 @@ void moduleParseCallReply_Array(RedisModuleCallReply *reply) {
     p += 2;
 
     if (arraylen == -1) {
-        reply->protolen = proto-p;
+        reply->protolen = p-proto;
         reply->type = REDISMODULE_REPLY_NULL;
         return;
     }
@@ -1900,7 +1900,7 @@ void moduleParseCallReply_Array(RedisModuleCallReply *reply) {
         moduleParseCallReply(ele);
         p += ele->protolen;
     }
-    reply->protolen = proto-p;
+    reply->protolen = p-proto;
     reply->type = REDISMODULE_REPLY_ARRAY;
 }
 
