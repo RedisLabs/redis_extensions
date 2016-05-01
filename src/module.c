@@ -314,6 +314,7 @@ int RM_IsKeysPositionRequest(RedisModuleCtx *ctx) {
  *  if (RedisModule_IsKeysPositionRequest(ctx)) {
  *      RedisModule_KeyAtPos(ctx,1);
  *      RedisModule_KeyAtPos(ctx,2);
+ *      return REDISMODULE_OK;
  *  }
  *
  *  Note: in the example below the get keys API would not be needed since
