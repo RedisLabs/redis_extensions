@@ -1264,9 +1264,7 @@ int RM_ZsetIncrby(RedisModuleKey *key, double score, RedisModuleString *ele, int
  * 'deleted' must be passed, that populates the integer by reference
  * setting it to 1 or 0 depending on the outcome of the operation.
  * The 'deleted' argument can be NULL if the caller is not interested
- * to know if the element was really removed.
- *
- * Empty keys will be handled correctly by doing nothing. */
+ * to know if the element was really removed. */
 int RM_ZsetRem(RedisModuleKey *key, RedisModuleString *ele, int *deleted) {
     if (!(key->mode & REDISMODULE_WRITE)) return REDISMODULE_ERR;
     if (key->value && key->value->type != OBJ_ZSET) return REDISMODULE_ERR;
