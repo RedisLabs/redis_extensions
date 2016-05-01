@@ -1271,6 +1271,7 @@ int RM_ZsetRem(RedisModuleKey *key, RedisModuleString *ele, int *deleted) {
     if (!(key->mode & REDISMODULE_WRITE)) return REDISMODULE_ERR;
     if (key->value && key->value->type != OBJ_ZSET) return REDISMODULE_ERR;
     if (key->value != NULL && zsetDel(key->value,ele->ptr)) {
+        moduleDelKeyIfEmpty(key);
         if (deleted) *deleted = 1;
     } else {
         if (deleted) *deleted = 0;
