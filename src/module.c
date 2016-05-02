@@ -1719,7 +1719,7 @@ int RM_HashSet(RedisModuleKey *key, int flags, ...) {
  *
  * REDISMODULE_HASH_CFIELD: field names as null terminated C strings.
  *
- * REDISMODULE_HASH_EXISTS: instead of setting the value of the field
+ * REDISMODULE_HASH_EXISTS: instead of getting the value of the field
  * expecting a RedisModuleString pointer to pointer, the function just
  * reports if the field esists or not and expects an integer pointer
  * as the second element of each pair.
