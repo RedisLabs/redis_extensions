@@ -1299,9 +1299,9 @@ int RM_ZsetRem(RedisModuleKey *key, RedisModuleString *ele, int *deleted) {
     return REDISMODULE_OK;
 }
 
-/* On success retrieve the double score associated at the sorted set element
- * 'ele' and returns REDISMODULE_OK. Otherwise REDISMODULE_ERR is returned
- * to signal one of the following conditions:
+/* On success retrieve the double score associated with the sorted set element
+ * 'ele' and returns REDISMODULE_OK. Otherwise REDISMODULE_ERR is returned to
+ * signal one of the following conditions:
  *
  * - There is no such element 'ele' in the sorted set.
  * - The key is not a sorted set.
@@ -1311,6 +1311,23 @@ int RM_ZsetScore(RedisModuleKey *key, RedisModuleString *ele, double *score) {
     if (key->value == NULL) return REDISMODULE_ERR;
     if (key->value->type != OBJ_ZSET) return REDISMODULE_ERR;
     if (zsetScore(key->value,ele->ptr,score) == C_ERR) return REDISMODULE_ERR;
+    return REDISMODULE_OK;
+}
+
+/* On success retrieve the rank associated of the sorted set element 'ele' and
+ * returns REDISMODULE_OK. Otherwise REDISMODULE_ERR is returned to signal one
+ * of the following conditions:
+ *
+ * - There is no such element 'ele' in the sorted set.
+ * - The key is not a sorted set.
+ * - The key is an open empty key.
+ */
+int RM_ZsetRank(RedisModuleKey *key, RedisModuleString *ele, size_t *rank) {
+    if (key->value == NULL) return REDISMODULE_ERR;
+    if (key->value->type != OBJ_ZSET) return REDISMODULE_ERR;
+    long r = zsetRank(key->value,ele->ptr,0);
+    if (r == C_ERR) return REDISMODULE_ERR;
+    *rank = (size_t) r;
     return REDISMODULE_OK;
 }
 
