@@ -1740,7 +1740,7 @@ int RM_HashSet(RedisModuleKey *key, int flags, ...) {
  *
  * REDISMODULE_HASH_CFIELD: field names as null terminated C strings.
  *
- * REDISMODULE_HASH_EXISTS: instead of setting the value of the field
+ * REDISMODULE_HASH_EXISTS: instead of getting the value of the field
  * expecting a RedisModuleString pointer to pointer, the function just
  * reports if the field esists or not and expects an integer pointer
  * as the second element of each pair.
@@ -1748,12 +1748,13 @@ int RM_HashSet(RedisModuleKey *key, int flags, ...) {
  * Example of REDISMODULE_HASH_CFIELD:
  *
  *  RedisModuleString *username, *hashedpass;
- *  RedisModule_HashGet(mykey,"username",&username,"hp",&hashedpass, NULL);
+ *  RedisModule_HashGet(mykey,REDISMODULE_HASH_CFIELD,"username",&username,
+ *                      "hp",&hashedpass, NULL);
  *
  * Example of REDISMODULE_HASH_EXISTS:
  *
  *  int exists;
- *  RedisModule_HashGet(mykey,argv[1],&exists,NULL);
+ *  RedisModule_HashGet(mykey,REDISMODULE_HASH_EXISTS,argv[1],&exists,NULL);
  *
  * The function returns REDISMODULE_OK on success and REDISMODULE_ERR if
  * the key is not an hash value.
